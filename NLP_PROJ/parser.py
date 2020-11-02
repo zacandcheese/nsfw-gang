@@ -28,10 +28,10 @@ class Parser:
         self.people = self.personParse()
         self.locations = self.locationParse()
         self.times = self.temporalParse()
-
-        print("PEOPLE: ", self.people)
-        print("LOCATIONS: ", self.locations)
-        print("TIMES: ", self.times)
+        self.prepositionalPhraseParse()
+        # print("PEOPLE: ", self.people)
+        # print("LOCATIONS: ", self.locations)
+        # print("TIMES: ", self.times)
 
     def parseForFeatures(self, chunked_sentences, featureList):
         returnList = []
@@ -97,9 +97,11 @@ class Parser:
         spacy_ents = list(map(lambda x: str(x[0]), spacy_ents))
         return list(set(nltk_ents + spacy_ents))
 
-    def propositionalPhraseParse(self):
-        pass
-
+    def prepositionalPhraseParse(self):
+        #doc = [self.nlp(sent) for sent in self.ref_doc]
+        #for token in doc[3]:
+        #    print(token, token.dep_)
+        return
 
 if __name__ == '__main__':
     if len(sys.argv) != 2:
