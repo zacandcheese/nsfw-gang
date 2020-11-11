@@ -1,0 +1,5 @@
+cython
+numpy
+spacy==2.3.2
+nltk>=3.5
+depccg
