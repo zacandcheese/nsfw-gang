@@ -2,21 +2,61 @@ import stanza
 from aima3.logic import expr
 from aima3.logic import FolKB
 import num2words
+
+import os
+import re
+
+
 # stanza.download('en')
+def get_subtree(sent, id):
+    # RETURN A LIST OF IDS
+    forThePhrase = []
+    forTheFOL = []
+    for word in sent.words:
+        head = word.head
+        if head == id:
+            forThePhrase.append(word.id)
+            if word.upos in ["ADJ", "NUM"]:
+                forTheFOL.append(word.id)
+    for new_id in forThePhrase:
+        temp1, temp2 = get_subtree(sent, new_id)
+        forTheFOL.extend(temp1)
+        forThePhrase.extend(temp2)
+    forTheFOL = list(set(forTheFOL))
+    forThePhrase = list(set(forThePhrase))
+    return forTheFOL, forThePhrase
 
-config = {
-    'processors':'tokenize,pos,lemma,depparse',
-    'lang':'en',
-}
-nlp = stanza.Pipeline(**config)
-doc = nlp("The dog and the extant gray wolf are sister taxa as modern wolves are not closely related to the wolves that were first domesticated, which implies that the direct ancestor of the dog is extinct. The dog was the first species to be domesticated and has been selectively bred over millennia for various behaviors, sensory capabilities, and physical attributes.")
-print(*[f'id: {word.id}\tword: {word.text}\t\thead id: {word.head}\thead:'
-        f' {sent.words[word.head-1].text if word.head > 0 else "root"}\tdeprel: '
-        f'{word.deprel}' for sent in doc.sentences for word in sent.words], sep='\n')
+def phrase_to_fol_string(phrase):
+    #phrase = re.sub(r"[\']",'',phrase)
+    phrase = re.sub(r"\W", '', phrase)
+    phrase = re.sub("\"", "Quote", phrase)
+    words = phrase.split(" ")
+    final_set = []
+    for word in words:
+        try:
+            word = num2words.num2words(int(word))
+            temp_set = re.findall("[a-zA-Z]+", word)
+            temp_set = list(map(lambda x: x.lower().capitalize(), temp_set))
+            final_set.extend(temp_set)
+        except ValueError:
+            final_set.append(word.lower().capitalize())
 
-def remove_rel_clause(sent):
-    clauses = [] # Set of tuples, head and phrase
-    return sent, clauses
+    string = "".join(final_set)
+    string = re.sub(r"\W", '', string)
+
+    return string
+
+def preprocess_string(string):
+    try:
+        (start, stop) = (re.search("See also", string)).span()
+        string = string[:start]
+    except AttributeError:
+        pass
+
+    string = re.sub("%", " percent", string)  # Modify Percents
+    string = re.sub("\((.*?)\)", "", string)  # Remove Parenthesis Asides
+    return string
+
 
 def convert_dep_to_fol(sent):
     """
@@ -29,89 +69,101 @@ def convert_dep_to_fol(sent):
     -------
 
     """
-    dep, clauses = remove_rel_clause(sent)
     # Find root:
-    root = None
-
+    roots = []
     for i, word in enumerate(sent.words):
-        if (word.deprel == 'root'):
-            root = word.text
-        if (root == 'the'):
-          for word in sent.words:
-              if (word.deprel == 'acl:relcl'):
-                  root = word.text
-        if (root == "Britain"):
-            for word in sent.words:
-                if (word.deprel == 'acl'):
-                    root = word.text
+        if word.deprel == 'root' or 'acl' in word.deprel:
+            roots.append(word.text)
 
-    nsubj = None
-    iobj = None
-    obj = None
-    for word in sent.words:
-        head = sent.words[word.head-1].text
 
-        if (head == root):
-            # Find nsubj for root:
-            if (word.deprel == 'nsubj' or word.deprel == 'nsubj:pass' or
-            word.deprel == 'obl' or word.deprel == 'csubj' or word.deprel ==
-                    'expl'):
-                nsubj = word.text.capitalize()
-            # Find iobj for root:
-            if (word.deprel == 'iobj' or word.deprel == 'nmod'):
-                iobj = word.text.capitalize()
-            # Find obj for root:
-            if (word.deprel == 'obj'):
-                obj = word.text.capitalize()
-
-    # Generate string for expr
     clauses = []
-    expr_str = ""
-    root_intake_str = ""
-    i = 0
-    if (nsubj == None and iobj == None and obj == None):
-        return []
-    for word in [nsubj, iobj, obj]:
-        if word != None:
-            try:
-                int(word)
-                word = num2words.num2words(word)
-            except ValueError:
-                pass
-            clauses.append(expr(str(word) + "(" + str(word) + ")"))
-            variable = chr(ord('a') + i)
-            expr_str += word + "(" + variable + ") & "
-            root_intake_str += variable + ", "
-            i += 1
-    root_intake_str = root_intake_str[:-2]
-    expr_str = expr_str[:-2] + "==> " + root.capitalize() + "(" + \
-               root_intake_str + ")"
-    print(expr_str)
-    clauses.append(expr(expr_str))
+    for root in roots:
+        mod = None
+        nsubj = None
+        iobj = None
+        obj = None
+
+        for word in sent.words:
+            head = sent.words[word.head - 1].text
+            if (head == root):
+                # Find mod
+                if 'mod' in word.deprel:
+                    mod = (word.text, word.id)
+
+                # Find nsubj for root:
+                if 'subj' in word.deprel:
+                    nsubj = (word.text, word.id)
+
+                # Find iobj for root:
+                if (word.deprel == 'iobj'):
+                    iobj = (word.text, word.id)
+
+                # Find obj for root:
+                if (word.deprel == 'obj'):
+                    obj = (word.text, word.id)
+
+        if (nsubj == None and iobj == None and obj == None):
+            continue
+
+        # Generate string for expr
+        expr_str = ""
+        root_intake_str = ""
+        counter = 0
+        for word in [mod, nsubj, iobj, obj]:
+            if word != None:
+                (word, i) = word
+                variable = chr(ord('a') + counter)
+                JJ = ""
+
+                ################################
+                #    GET THE JJ or MODIFIERS   #
+                forFOL, forPhrase = (get_subtree(sent, i))
+                forPhrase.append(i)
+                forPhrase = list(set(forPhrase))
+                # these are list of ids
+                var = ""
+                for idx in forPhrase:
+                    var += phrase_to_fol_string(sent.words[idx - 1].text)
+                for idx in forFOL:
+                    temp = sent.words[idx - 1].text
+                    FOLHEAD = phrase_to_fol_string(temp)
+                    clauses.append(expr(FOLHEAD + "(" + var + ")"))
+                    expr_str += FOLHEAD + "(" + variable + ") & "
+                ################################
+                wordVar = phrase_to_fol_string(word)
+                clauses.append(expr(wordVar + "(" + var + ")"))
+                expr_str += wordVar + "(" + variable + ") & "
+                root_intake_str += variable + ", "
+                counter += 1
+            else:
+                root_intake_str += "None, "
+        root_intake_str = root_intake_str[:-2]
+        rootVar = phrase_to_fol_string(root)
+        expr_str = expr_str[:-2] + "==> " + rootVar + "(" + \
+                   root_intake_str + ")"
+        clauses.append(expr(expr_str))
     return clauses
 
-import os
-print(os.getcwd())
-f = open(file="NLP_PROJ\\set5\\a1.txt", encoding="utf-8", mode="r+")
-import re
 
-string = f.read()
-(start, stop) = (re.search("See also", string)).span()
+if __name__ == "__main__":
+    config = {
+        'processors': 'tokenize,pos,lemma,depparse',
+        'lang': 'en',
+    }
+    nlp = stanza.Pipeline(**config)
 
-string = re.sub("%", " percent", string)
-# print(start)
-# print(string[:start])
+    f = open(file="NLP_PROJ\\set5\\a2.txt", encoding="utf-8", mode="r+")
+    string = f.read()
+    # DELETE ME IF YOU WANT TO TRY YOUR OWN PASSAGE #
+    # string = "The cool man walked down the street."
+    string = preprocess_string(string)
 
+    doc = nlp(string)
 
-doc = nlp(string[:start])
-
-
-clauses = []
-for sent in doc.sentences:
-    if (len(sent.words) > 5):
+    clauses = []
+    for sent in doc.sentences:
         clauses.extend(convert_dep_to_fol(sent))
 
-clauses = list(set(clauses))
-print(clauses)
-kb = FolKB(clauses)
-print(kb.ask(expr("Die(x)")))
+    clauses = list(set(clauses))
+    print(clauses)
+    kb = FolKB(clauses)
