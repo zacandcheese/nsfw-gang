@@ -403,9 +403,9 @@ def write_question (verb, subject_list, indirect_object_list, object_list):
 if __name__ == "__main__":
     config = {
         'processors': 'tokenize,pos,lemma,depparse,ner',
-        'lang': 'en',
+        'lang': 'en', 'verbose': 'False',
     }
-    nlp = stanza.Pipeline(**config)
+    nlp = stanza.Pipeline('en', processors= 'tokenize,pos,lemma,depparse,ner',verbose=False)
 
     f = open(file="NLP_PROJ/set5/a2.txt", encoding="utf-8", mode="r+")
     string = f.read()
