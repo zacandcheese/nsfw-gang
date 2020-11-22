@@ -2,6 +2,9 @@ import spacy
 import stanza
 from facts_parser import *
 from aima3.logic import Expr
+import logging
+
+
 nlp_spacy = spacy.load("en_core_web_lg")
 def sentence_similarity(question, file):
 
@@ -29,12 +32,16 @@ def fol_ask(kb, dep_question, doc, question):
     sentence_similarity(question, doc)
     return answer
 if __name__ == "__main__":
+    logger = logging.getLogger(__name__)
+    nlp_logger = logging.getLogger('stanza')
+    nlp_logger.setLevel(logging.WARNING)
     config = {
-        'processors': 'tokenize,pos,lemma,depparse',
+        'verbose':False, 'processors': 'tokenize,pos,lemma,depparse',
         'lang': 'en',
     }
-    nlp = stanza.Pipeline(**config)
 
+    nlp = stanza.Pipeline(**config)
+    logger.removeHandler(stanza.log_handler)
 
     f = open(file="NLP_PROJ\\set5\\a1.txt", encoding="utf-8", mode="r+")
     string = f.read()
