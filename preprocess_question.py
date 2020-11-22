@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import stanza
+import sys
 from aima3.logic import expr
 from aima3.logic import FolKB
 import aima3.logic as aima
@@ -401,17 +402,15 @@ def write_question (verb, subject_list, indirect_object_list, object_list):
 
 
 if __name__ == "__main__":
-    config = {
-        'processors': 'tokenize,pos,lemma,depparse,ner',
-        'lang': 'en', 'verbose': 'False',
-    }
+
     nlp = stanza.Pipeline('en', processors= 'tokenize,pos,lemma,depparse,ner',verbose=False)
 
-    f = open(file="NLP_PROJ/set5/a2.txt", encoding="utf-8", mode="r+")
+    f = open(file=sys.argv[1], encoding="utf-8", mode="r+")
     string = f.read()
     # DELETE ME IF YOU WANT TO TRY YOUR OWN PASSAGE #
     # string = "Pittsburgh is not the capital of Pennsylvania."
     string = preprocess_string(string)
+    num_questions = int(sys.argv[2])
 
     doc = nlp(string)
 
@@ -462,7 +461,7 @@ if __name__ == "__main__":
         word_dict[word_mod_list[i][0]].append(word_mod_list[i][1])
 
     #print(word_dict)
-    
+    final_questions = set()
     # For each relationship, get parameters
     for relationship in str_relationships:
         word_side = []
@@ -518,6 +517,17 @@ if __name__ == "__main__":
         # print(subject_list)
         # print(indirect_object_list)
         # print(object_list)
-        print(write_w_question(verb, subject_list, indirect_object_list, object_list, positive))
-        print(write_question(verb, subject_list, indirect_object_list, object_list))
+        final_questions |= (write_w_question(verb, subject_list, indirect_object_list, object_list, positive))
+        if len(final_questions) >= num_questions:
+            break
+        final_questions |= (write_question(verb, subject_list, indirect_object_list, object_list))
+        if len(final_questions) >= num_questions:
+            break
+
+    counter = 1
+    for final_question in final_questions:
+        print(final_question)
+        if counter == num_questions:
+            break
+        counter += 1
 
