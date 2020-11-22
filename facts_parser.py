@@ -152,10 +152,10 @@ if __name__ == "__main__":
     }
     nlp = stanza.Pipeline(**config)
 
-    f = open(file="NLP_PROJ\\set5\\a2.txt", encoding="utf-8", mode="r+")
+    f = open(file="NLP_PROJ\\set5\\a1.txt", encoding="utf-8", mode="r+")
     string = f.read()
     # DELETE ME IF YOU WANT TO TRY YOUR OWN PASSAGE #
-    # string = "The cool man walked down the street."
+    # string = "Megan is beautiful. Meghan is Megan. "
     string = preprocess_string(string)
 
     doc = nlp(string)
@@ -167,3 +167,4 @@ if __name__ == "__main__":
     clauses = list(set(clauses))
     print(clauses)
     kb = FolKB(clauses)
+    print(list(kb.ask_generator(expr("Megan(None, a, None, None)"))))
