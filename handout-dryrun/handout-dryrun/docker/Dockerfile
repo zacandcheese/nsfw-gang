@@ -14,11 +14,17 @@ RUN apt-get -y update && \
 RUN pip3 install --upgrade pip
 RUN pip3 install spacy
 RUN python3 -m spacy download en_core_web_lg
+RUN pip3 install stanza
+RUN python3 -c 'import stanza; stanza.download("en")'
+RUN pip3 install aima3
+RUN pip3 install num2words
 
 # Add the files into container, under QA folder, modify this based on your need
 RUN mkdir /QA
+ADD facts_parser.py /QA
 ADD ask /QA
 ADD answer /QA
+
 
 # Change the permissions of programs
 CMD ["chmod 777 /QA/*"]
