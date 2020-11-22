@@ -1,8 +1,10 @@
+#!/usr/bin/python3 -W ignore::DeprecationWarning
+# -*- coding:utf8 -*-
+import sys
 import spacy
 import stanza
 from facts_parser import *
-from aima3.logic import Expr
-import logging
+
 
 
 nlp_spacy = spacy.load("en_core_web_lg")
@@ -32,18 +34,18 @@ def fol_ask(kb, dep_question, doc, question):
     sentence_similarity(question, doc)
     return answer
 if __name__ == "__main__":
-    logger = logging.getLogger(__name__)
-    nlp_logger = logging.getLogger('stanza')
-    nlp_logger.setLevel(logging.WARNING)
+    input_file = sys.argv[1]
+    question_file = sys.argv[2]
+
     config = {
-        'verbose':False, 'processors': 'tokenize,pos,lemma,depparse',
+        'verbose': False, 'processors': 'tokenize,pos,lemma,depparse',
         'lang': 'en',
     }
 
     nlp = stanza.Pipeline(**config)
     logger.removeHandler(stanza.log_handler)
 
-    f = open(file="NLP_PROJ\\set5\\a1.txt", encoding="utf-8", mode="r+")
+    f = open(file=input_file, encoding="utf-8", mode="r+")
     string = f.read()
     spacy_string = string
     string = preprocess_string(string)
@@ -58,6 +60,8 @@ if __name__ == "__main__":
     kb = FolKB(clauses)
 
     list_of_questions = ["What is the genus of the dog?", "Is the dog cool?"]
+    q = open(file=question_file, encoding="utf-8", mode="r+")
     spacy_doc = nlp_spacy(spacy_string)
-    for question in list_of_questions:
-        print(question, ": ", sentence_similarity(question, spacy_doc))
+    count = 0
+    for question in q:
+        print('A' + str(count), sentence_similarity(question, spacy_doc))
