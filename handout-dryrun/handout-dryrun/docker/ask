@@ -8,7 +8,8 @@ import num2words
 import re
 from collections import defaultdict
 import os
-
+import warnings
+warnings.filterwarnings("ignore")
 
 def replace_ordinal_numbers(text):
     #print(text)
