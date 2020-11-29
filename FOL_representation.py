@@ -54,6 +54,7 @@ class FOLParser():
     def add_attributes_to_entity(self, attribute_set, entity):
         entity.add_attributes(attribute_set)
         for attribute in attribute_set:
+            pass
             ## if attr doesn't exist, create it. self.attributes.add(Attr)
             ## create a predicate Attr(entity) and add to KB
 
