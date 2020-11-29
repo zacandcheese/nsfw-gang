@@ -1,0 +1,56 @@
+Set 1/ a1.txt
+Old Kingdom
+
+Q1. When is the third millennium?
+Q2. What is the thrid millenniym known as? 'Age of the Pyramids'
+Q3. Who perfected the art of pyramid building? King Sneferu
+Q4. What was constructed under the kings Khufu, Khafre and Menkaure?  The Great Pyramids
+Q5. The great Pyramids were constructed under whom? Khufu, Khafre and Menkaure
+* The term itself was coined in by eighteenth-century. * = I would like term to be Old Kingdom
+Q6. The Old Kingdom is regarded as the period from what Dynasties? Third to Sixth
+Q7. When was the king of Egypt called Pharoah? New Kingdom
+Q8. When was the king of Egypt a living god? During the Old Kingdom
+Q9. Could the Egypt became a living god who ruled? Yes
+Q10. Is the Old Kingdom also the "the Age of the Pyramids."
+
+* TRICKY!
+Q11. Who was the first pharoah? Djoser
+* When is the Djoser? IT IS NOT sometime between 2691 2625
+-> Possibly make pharoah == Human HYPERNYM RULER*
+TRICKY QUESTIONS
+1. Using AND to group multiple ideas to confuse sentence similiarity.
+What was a period in the thrid millennium AND it's first king was King Djoser? Old Kingdom
+
+2. Using chaing to distance ideas.
+This god was the first pharaoh of the old kingdom? King Djoser
+
+3. CHAIN LOGIC
+[Was Is or No] the Old Kingdom in the third millennium AND the first Pharaoh was Djoser AND (something false)? No 
+INCLUDE NEGATION
+
+Q12. Who was born first -> Give choices? 
+
+
+
+Set 3/ a1.txt
+Gyarados
+Handling Red as a person and Color
+Handling ' ' 
+Handling Japanese
+
+
+Set 4/ a3.txt
+Polaris
+
+Set 5/ a1.txt
+Dog
+
+
+NOTES
+() can be birthdate/time period or alternate name *TRICKY (Dynasties 3-6)
+END ON REFERENCES
+DONT HYPERNYM ON NAME do on relation if possible.
+GYARADOS japanese name
+Do we want to handle external links -> What else could you check out?
+Knowing pluratity/tense?
+Handling lists.
