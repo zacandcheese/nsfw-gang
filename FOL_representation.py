@@ -68,10 +68,18 @@ class RelationType(enum.Enum):
     Negation = 5
 
     def to_string(self):
-        if self.value == RelationType.NoRelation:
+        if self.value == RelationType.No_Relation:
             return ""
-        if self.value == RelationType.NoRelation:
-            return ""
+        elif self.value == RelationType.Negation:
+            return "not" ##??
+        elif self.value == RelationType.Implication:
+            return "implies"
+        elif self.value == RelationType.Equivalent:
+            return "equivalent"
+        elif self.value == RelationType.Member_Of:
+            return "is a member of"
+        elif self.value == RelationType.Hyponym:
+            return "is a hyponym of"
 
 
 ### PUBLIC ###
@@ -332,14 +340,12 @@ class FOLParser():
 
     # for true false questions
     def statement_entailed_by_KB(self, statement):
-        print()
-        print(statement.object_type())
-        print()
         assert(statement.object_type() == ObjectType.Relation)
         # relation_type = statement.rel_type
         for relation in self.set_of_relations:
             if relation == statement:
                 return True
+        return False
         # if relation_type == RelationType.Implication:
         #     pass
         #     ## 
@@ -352,7 +358,9 @@ class FOLParser():
     # for wh- questions
     def fill_in_the_blank(self, incomplete_statement, obtype, fill_in_the_blank_type):
         options = self.get_options(obtype)
-        for option in options:
+        for option in options: 
+            ## for entities, try entity lists too.  
+            ## entity_lists get preference over entities if both satisfy the statement
             complete_statement = self.fill_predicate(option, fill_in_the_blank_type, incomplete_statement)
             if self.statement_entailed_by_KB(complete_statement):
                 return option
@@ -383,7 +391,7 @@ class FOLParser():
 ### PRIVATE : can only interact with following objects through functions in above parser (add more functions above ^ if needed) ###
 
 class Relation():
-    def __init__(self, rel, LHS, RHS = None):
+    def __init__(self, rel, LHS, RHS = None, blank = False):
         # RESTRICT TYPE
         self.rel_type = rel
         self.LHS = LHS
@@ -414,38 +422,47 @@ class Relation():
             return (self.rel_type.to_string() + " " + self.LHS.user_string()).strip()
         return (self.LHS.user_string() + " " + self.rel_type.to_string() + " " + self.RHS.user_string()).strip()
 
+    def make_copy(self):
+        return Relation(self.rel_type, self.LHS, self.RHS)
+
 
 class Predicate():
-    def __init__(self, name, attributes, subject, obj, iobj, obl):
-        self.name = name.lemma
+    def __init__(self, name, attributes, subject, obj, iobj, obl, blank = False):   
+        self.name = name
+        self.name_lemma = name.lemma
         self.meta_data = name.feats
         self.attributes = attributes
         self.subject = subject
         self.direct_obj = obj
         self.indirect_obj = iobj
         self.obl = obl
+        self.blank = blank
 
     def object_type(self):
         return ObjectType.Predicate
     # given a verb, say, Shop, and a subject, Zach, and maybe modifiers, slowly, we make a predicate which is equivalent to the knowledge that Zach shops slowly. This gives us the ability to automatically have Zach shops because the modifiers don't need to be checked.
     def __hash__(self):
-        return hash((self.name.lower(), str(self.subject), str(self.direct_obj),
+        return hash((self.name_lemma.lower(), str(self.subject), str(self.direct_obj),
                      str(self.indirect_obj), str(self.obl)))
 
     def __str__(self):
-        return self.name + "(" + str(self.subject) + ", " + str(
+        return self.name_lemma + "(" + str(self.subject) + ", " + str(
             self.direct_obj) + ", " + str(self.indirect_obj) + ", " + str(
             self.obl) \
                + ")"
 
     def user_string(self):
         pass # TODO: define. Need to conjugate the verb?
+
+    def make_copy(self):
+        return Predicate(self.name, self.attributes, self.subject, self.direct_obj, self.indirect_obj, self.obl)
         
 
 class Attribute():  # again, not a statement or a predicate, just 'Blue'
-    def __init__(self, word, entity):
+    def __init__(self, word, entity, blank = False):
         self.word = word
         self.entity = entity
+        self.blank = blank
 
     def object_type(self):
         return ObjectType.Attribute
@@ -456,13 +473,17 @@ class Attribute():  # again, not a statement or a predicate, just 'Blue'
     def __str__(self):
         return self.word.lemma + "("  + str(self.entity) +  ")"
 
+    def make_copy(self):
+        return Attribute(self.word, self.entity)
+
 
 class EntityClass():
-    def __init__(self, name, attribute_set, entity_class_list, modifiers):
+    def __init__(self, name, attribute_set, entity_class_list, modifiers, blank = False):
         self.name = name
         self.attributes = attribute_set
         self.modifiers = modifiers
         self.entity_class_list = entity_class_list
+        self.blank = blank
     
     def object_type(self):
         return ObjectType.EntityClass
@@ -476,13 +497,17 @@ class EntityClass():
     def user_string(self):
         return self.name
 
+    def make_copy(self):
+        return EntityClass(self.name, self.attributes, self.entity_class_list, self.modifiers)
+
 
 class Entity():
-    def __init__(self, name, attribute_set, entity_list, modifiers):
+    def __init__(self, name, attribute_set, entity_list, modifiers, blank = False):
         self.name = name
         self.attributes = attribute_set
         self.modifiers = modifiers
         self.entity_list = entity_list
+        self.blank = blank
 
     def object_type(self):
         return ObjectType.Entity
@@ -496,11 +521,15 @@ class Entity():
     def user_string(self):
         return self.name
 
+    def make_copy(self):
+        return Entity(self.name, self.attributes, self.entity_list, self.modifiers)
+
 
 class EntityList():
-    def __init__(self, conj, entity_set):
+    def __init__(self, conj, entity_set, blank=False):
         self.conj = conj
         self.entity_list = entity_set
+        self.blank = blank
 
     def object_type(self):
         return ObjectType.EntityList
@@ -525,6 +554,9 @@ class EntityList():
                 result += self.conj.to_string() + " " + entity.user_string
             else:
                 result += entity.user_string + ", "
+
+    def make_copy(self):
+        return EntityList(self.conj, self.entity_list)
         
 
 if __name__ == '__main__':
@@ -541,14 +573,32 @@ if __name__ == '__main__':
     # string = "An adult female dog is a bitch."
     fol_parser = FOLParser(nlp)
     fol_parser.add_to_KB_from_text(string)
+
+    print("\nentities are\n")
     for ent in fol_parser.set_of_entities:
         print(ent, type(ent))
+
+    print("\npredicates are\n") 
     for ent in fol_parser.set_of_predicates:
         print(ent)
+
+    print("\nattributes are\n")
     for ent in fol_parser.set_of_attrs:
         print(ent)
-    for ent in fol_parser.set_of_relations:
-        print(ent)
-        print(fol_parser.statement_entailed_by_KB(ent))
+        
 
+    # given a relation object, we can tell if it's entailed by the KB
+    # now we just need to create a relation object out of a question string
+    for rel in fol_parser.set_of_relations:
+        print("relation is ", rel)
+        print(fol_parser.statement_entailed_by_KB(rel))
+        rel_copy = rel.make_copy()
+        print("copy relation is ", rel_copy)
+        for entity in fol_parser.set_of_entities:
+            if rel_copy.LHS.object_type() == ObjectType.Predicate:
+                rel_copy.LHS.subject = entity
+                print("modified copy relation is ", rel_copy)
+                print()
+                print(fol_parser.statement_entailed_by_KB(rel_copy))
+                print()
     
