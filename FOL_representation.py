@@ -12,7 +12,7 @@
 
 ## Is the 'word' argument in attribute a string? If so, change to .lower() in hash function
 
-## make an almost equal function?
+## make an almost equal function for entities and stuff?
 
 ### ENUM CLASSES ###
 
