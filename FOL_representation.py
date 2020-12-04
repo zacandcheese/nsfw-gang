@@ -36,6 +36,21 @@ config = {
 nlp = stanza.Pipeline(**config)
 nlp_spacy = spacy.load('en_core_web_lg')
 
+
+def sentence_similarity(question, file):
+
+    q = nlp_spacy(question)
+    best_sent = ""
+    max = -1
+    for sent in file.sents:
+        score = sent.similarity(q)
+        if (score > max):
+            max = score
+            best_sent = sent
+    # print(max, best_sent)
+    subject = [tok for tok in best_sent if (tok.dep_ == "nsubj")]
+    return subject[0]
+
 class ConjunctionType(enum.Enum):
     And = 0
     Or = 1
@@ -117,7 +132,7 @@ class FOLParser():
         self.set_of_predicates = set()
         self.set_of_relations = set()
         self.list_of_entity_lists = []
-
+        self.file = None
         self.KB = (rules, self.facts)
         self.question_mode = False
 
@@ -380,6 +395,7 @@ class FOLParser():
     def add_to_KB_from_text(self, text):
         text = self.preprocess_text(text)
         document = self.nlp(text)
+        self.file = nlp_spacy(text)
         # deplacy.render(document)
 
         for sentence in document.sentences:
@@ -463,6 +479,8 @@ class FOLParser():
         text = self.preprocess_text(question_string)
         document = self.nlp(text)
         sentence = document.sentences[0]
+
+        print(sentence, question_string)
         parsed_question = self.parse_sentence(sentence, True)
         if self.question_type(sentence) == QuestionType.TF_question:
             if self.statement_entailed_by_KB(parsed_question):
@@ -472,10 +490,10 @@ class FOLParser():
                     return "False"
                 return "True"
         else:
-            obtype = None
+            obtype = ObjectType.Entity
             # fill_in_the_blank_type = None
             ## TODO: update above two variables by checking where the 'Wh' word is in the question
-            answer = self.fill_in_the_blank(parsed_question, obtype)
+            answer = self.fill_in_the_blank(parsed_question, obtype, question_string)
             return (self.capitalize_first_letter(answer.user_string())).strip() ## capitalize first letter when returning if not alr capitalized
 
     def capitalize_first_letter(self, s):
@@ -504,11 +522,21 @@ class FOLParser():
     # for true false questions
     def statement_entailed_by_KB(self, statement):
 
-        assert (statement.object_type() == ObjectType.Relation)
+        # assert (statement.object_type() == ObjectType.Relation)
         # relation_type = statement.rel_type
+        """
         for relation in self.set_of_relations:
             if relation == statement:
                 return True
+
+        for relation in self.set_of_predicates:
+            if relation == statement:
+                return True
+
+        for relation in self.set_of_attrs:
+            if relation == statement:
+                return True
+        """
         return False
         # if relation_type == RelationType.Implication:
         #     pass
@@ -520,7 +548,8 @@ class FOLParser():
         #     pass
 
     # for wh- questions
-    def fill_in_the_blank(self, incomplete_statement, obtype):
+    def fill_in_the_blank(self, incomplete_statement, obtype, string):
+        """
         options = self.get_options(obtype)
         for option in options:
             ## for entities, try entity lists too.
@@ -528,7 +557,8 @@ class FOLParser():
             complete_statement = self.fill_predicate(option, incomplete_statement)
             if self.statement_entailed_by_KB(complete_statement):
                 return option
-
+        """
+        return sentence_similarity(string, self.file)
     # fills a predicate with a blank/blanks with the given object 
     def fill_predicate(self, option, incomplete_statement):
         if incomplete_statement.object_type() == ObjectType.Attribute:
@@ -844,7 +874,7 @@ if __name__ == '__main__':
     spacy_doc = nlp_spacy(q.read())
     count = 0
 
-    for question in spacy_doc:
+    for question in spacy_doc.sents:
         print(question.text)
         answer = fol_parser.answer_question(question.text)
         print()
