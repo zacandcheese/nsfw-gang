@@ -1,3 +1,6 @@
+#!/usr/bin/env python3
+
+
 ## class names are in camel case, starting with capital letters, function and variable names in snake case, starting with small letters
 
 ## do we want to introduce the concept of a predicate list with conjunctions? To allow for multiple predicates on either side of an implication: if you're Fat and you're Blue => you're from Mars
@@ -480,7 +483,7 @@ class FOLParser():
         document = self.nlp(text)
         sentence = document.sentences[0]
 
-        print(sentence, question_string)
+        # print(sentence, question_string)
         parsed_question = self.parse_sentence(sentence, True)
         if self.question_type(sentence) == QuestionType.TF_question:
             if self.statement_entailed_by_KB(parsed_question):
@@ -495,7 +498,7 @@ class FOLParser():
             # fill_in_the_blank_type = None
             ## TODO: update above two variables by checking where the 'Wh' word is in the question
             answer = self.fill_in_the_blank(parsed_question, obtype, question_string)
-            return (self.capitalize_first_letter(answer.user_string())).strip() ## capitalize first letter when returning if not alr capitalized
+            return (self.capitalize_first_letter(str(answer))).strip() ## capitalize first letter when returning if not alr capitalized
 
 
     def capitalize_first_letter(self, s):
@@ -867,7 +870,7 @@ if __name__ == '__main__':
     fol_parser.add_to_KB_from_text(f.read())
     # fol_parser.add_to_KB_from_text(string)
     f.close()
-
+    
     print(fol_parser.answer_question("Is the largest known dog an English "
                                      "Mastiff?"))
     """
@@ -886,9 +889,9 @@ if __name__ == '__main__':
     count = 0
 
     for question in spacy_doc.sents:
-        print(question.text)
+        #print(question.text)
         answer = fol_parser.answer_question(question.text)
-        print()
+        print(answer)
 
     f.close()
     q.close()
