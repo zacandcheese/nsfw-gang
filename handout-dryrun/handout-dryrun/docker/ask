@@ -931,12 +931,30 @@ if __name__ == '__main__':
         str1 = write_question(str(pred.name_lemma), str(pred.subject), str(pred.direct_obj), str(pred.indirect_obj), str(pred.obl), dict_of_relations, "w", True, True);
         if not(str1 ==""):
             str1_nlp = readability_nlp(str1)
-            if((str1_nlp._.automated_readability_index) >= 10.0):
+            if((str1_nlp._.automated_readability_index) >= 9.0):
                 print(str1)
                 i += 1
         str2 = (write_question(str(pred.name_lemma), str(pred.subject), str(pred.direct_obj), str(pred.indirect_obj), str(pred.obl), dict_of_relations, "t/f", True, False));
         if not(str2 == ""):
             str2_nlp = readability_nlp(str2)
-            if((str2_nlp._.automated_readability_index) >= 12.0):
+            if((str2_nlp._.automated_readability_index) >= 9.0):
                 print(str2)
                 i += 1
+    
+    if(i < num_questions):
+        for pred in fol_parser.set_of_predicates:
+            if(i >= num_questions):
+                break
+            str1 = write_question(str(pred.name_lemma), str(pred.subject), str(pred.direct_obj), str(pred.indirect_obj), str(pred.obl), dict_of_relations, "w", True, True);
+            if not(str1 ==""):
+                str1_nlp = readability_nlp(str1)
+                if((str1_nlp._.automated_readability_index) >= 5.0):
+                    print(str1)
+                    i += 1
+            str2 = (write_question(str(pred.name_lemma), str(pred.subject), str(pred.direct_obj), str(pred.indirect_obj), str(pred.obl), dict_of_relations, "t/f", True, False));
+            if not(str2 == ""):
+                str2_nlp = readability_nlp(str2)
+                if((str2_nlp._.automated_readability_index) >= 5.0):
+                    print(str2)
+                    i += 1
+
