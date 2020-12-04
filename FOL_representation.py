@@ -38,8 +38,8 @@ class ObjectType(enum.Enum):
     EntityClass = 5
 
 
-class FillInTheBlankType(enum.Enum):
-    pass
+# class FillInTheBlankType(enum.Enum):
+#     pass
 
 
 class QuestionType(enum.Enum):
@@ -311,9 +311,9 @@ class FOLParser():
                 return "False"
         else:
             obtype = None
-            fill_in_the_blank_type = None
+            # fill_in_the_blank_type = None
             ## TODO: update above two variables by checking where the 'Wh' word is in the question
-            answer = self.fill_in_the_blank(parsed_question, obtype, fill_in_the_blank_type)
+            answer = self.fill_in_the_blank(parsed_question, obtype)
             return (self.capitalize_first_letter(answer.user_string())).strip() ## capitalize first letter when returning if not alr capitalized
 
     def capitalize_first_letter(self, s):
@@ -356,20 +356,34 @@ class FOLParser():
         #     pass
 
     # for wh- questions
-    def fill_in_the_blank(self, incomplete_statement, obtype, fill_in_the_blank_type):
+    def fill_in_the_blank(self, incomplete_statement, obtype):
         options = self.get_options(obtype)
         for option in options: 
             ## for entities, try entity lists too.  
             ## entity_lists get preference over entities if both satisfy the statement
-            complete_statement = self.fill_predicate(option, fill_in_the_blank_type, incomplete_statement)
+            complete_statement = self.fill_predicate(option, incomplete_statement)
             if self.statement_entailed_by_KB(complete_statement):
                 return option
 
     # fills a predicate with a blank/blanks with the given object 
-    def fill_predicate(self, option, fill_in_the_blank_type, incomplete_statement):
-        X = incomplete_statement
+    def fill_predicate(self, option, incomplete_statement):
+        if incomplete_statement.object_type() == ObjectType.Attribute:
+            if incomplete_statement.entity.blank:
+                incomplete_statement.entity = option
+            return incomplete_statement
+        elif incomplete_statement.object_type() == ObjectType.Predicate:
+            if incomplete_statement.subject.blank:
+                incomplete_statement.subject = option
+            elif incomplete_statement.direct_obj.blank:
+                incomplete_statement.direct_obj = option
+            elif incomplete_statement.indirect_obj.blank:
+                incomplete_statement.indirect_obj = option
+            return incomplete_statement
+        # elif incomplete_statement.object_type() == ObjectType.Relation:
+        #     return
+
         ## TODO: create a new statement 
-        return X
+        # return X
 
     def generate_all_questions(self):
         ## TODO: link this to Mehul + Efe's code
