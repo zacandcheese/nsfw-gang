@@ -30,12 +30,10 @@ warnings.filterwarnings("ignore")
 import io
 
 config = {
-    'processors': 'tokenize,pos,lemma,depparse',
+    'verbose':False, 'processors': 'tokenize,pos,lemma,depparse',
     'lang': 'en',
 }
 nlp = stanza.Pipeline(**config)
-
-
 nlp_spacy = spacy.load('en_core_web_lg')
 
 class ConjunctionType(enum.Enum):
@@ -452,7 +450,6 @@ class FOLParser():
         # TODO: figure out which kind of question it is
         for word in sent.words:
             if word.xpos == "WP":
-                print(word.text)
                 return QuestionType.Wh_question
 
         return QuestionType.TF_question
@@ -467,7 +464,6 @@ class FOLParser():
         document = self.nlp(text)
         sentence = document.sentences[0]
         parsed_question = self.parse_sentence(sentence, True)
-        print(self.question_type(sentence))
         if self.question_type(sentence) == QuestionType.TF_question:
             if self.statement_entailed_by_KB(parsed_question):
                 return "True"
@@ -839,7 +835,11 @@ if __name__ == '__main__':
     q = open(file=question_file, encoding="utf-8", mode="r+")
     spacy_doc = nlp_spacy(q.read())
     count = 0
-    for question in q:
+
+    for question in spacy_doc:
+        print(question.text)
         answer = fol_parser.answer_question(question.text)
         print()
 
+    f.close()
+    q.close()
