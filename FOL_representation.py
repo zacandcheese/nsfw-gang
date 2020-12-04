@@ -22,6 +22,20 @@
 import enum
 import re
 import spacy
+import stanza
+import warnings
+warnings.filterwarnings("ignore", message=r"\[W008\]", category=UserWarning)
+warnings.filterwarnings("ignore")
+
+import io
+
+config = {
+    'processors': 'tokenize,pos,lemma,depparse',
+    'lang': 'en',
+}
+nlp = stanza.Pipeline(**config)
+
+
 nlp_spacy = spacy.load('en_core_web_lg')
 
 class ConjunctionType(enum.Enum):
@@ -442,7 +456,11 @@ class FOLParser():
                 return QuestionType.Wh_question
 
         return QuestionType.TF_question
-
+    def has_negation(self, sent):
+        for word in sent.words:
+            if word.lemma == "not":
+                return True
+        return False
     def answer_question(self, question_string):
         self.question_mode = True
         text = self.preprocess_text(question_string)
@@ -454,7 +472,9 @@ class FOLParser():
             if self.statement_entailed_by_KB(parsed_question):
                 return "True"
             else:
-                return "False"
+                if (self.has_negation(sentence)):
+                    return "False"
+                return "True"
         else:
             obtype = None
             fill_in_the_blank_type = None
@@ -580,7 +600,7 @@ class Relation():
         return Relation(self.rel_type, self.LHS, self.RHS)
 
     def __eq__(self, other):
-
+        """
         otherL = nlp_spacy(other.LHS.name)
         otherR = nlp_spacy(other.RHS.name)
 
@@ -592,10 +612,15 @@ class Relation():
             return True
         score1 = otherR.similarity(currentL) > 0.97
         score2 = otherL.similarity(currentR) > 0.97
-        if score1 and score2:
+        """
+        if (other.LHS.name == self.LHS.name and
+            other.RHS.name == self.LHS.name):
             return True
-
+        if (other.RHS.name == self.LHS.name and
+            other.LHS.name == self.RHS.name):
+            return True
         return False
+
 class Predicate():
     def __init__(self, name, attributes, subject, obj, iobj, obl, blank=False):
         self.name = name.lemma
@@ -775,7 +800,11 @@ class EntityList():
         return EntityList(self.conj, self.entity_list)
 
 
+fol_parser = FOLParser(nlp)
+
+
 if __name__ == '__main__':
+    """
     import stanza
     import io
 
@@ -796,44 +825,21 @@ if __name__ == '__main__':
 
     print(fol_parser.answer_question("Is the largest known dog an English "
                                      "Mastiff?"))
-
-
     """
-    print("\nentities are\n")
-    print(list(set(fol_parser.set_of_entities)))
-    
-    
-    for ent in fol_parser.set_of_entities:
-       print(ent, type(ent))
+    import sys
+    input_file = sys.argv[1]
+    question_file = sys.argv[2]
 
-    print("\npredicates are\n")
-    """
-    for ent in fol_parser.set_of_predicates:
-        print(ent)
 
-    print("\nattributes are\n")
-    for ent in fol_parser.set_of_attrs:
-        print(ent)
+    f = open(file=input_file, encoding="utf-8", mode="r+")
+    string = f.read()
+    fol_parser.add_to_KB_from_text(string)
 
-    print("\nrelations are\n")
-    for ent in fol_parser.set_of_relations:
-        print(ent)
 
-    print("\nchaining\n")
-    """
-    # given a relation object, we can tell if it's entailed by the KB
-    # now we just need to create a relation object out of a question string
-    """
-    for rel in fol_parser.set_of_relations:
-        print("relation is ", rel)
-        print(fol_parser.statement_entailed_by_KB(rel))
-        rel_copy = rel.make_copy()
-        print("copy relation is ", rel_copy)
-        for entity in fol_parser.set_of_entities:
-            if rel_copy.LHS.object_type() == ObjectType.Predicate:
-                rel_copy.LHS.subject = entity
-                print("modified copy relation is ", rel_copy)
-                print()
-                print(fol_parser.statement_entailed_by_KB(rel_copy))
-                print()
-    """
+    q = open(file=question_file, encoding="utf-8", mode="r+")
+    spacy_doc = nlp_spacy(q.read())
+    count = 0
+    for question in q:
+        answer = fol_parser.answer_question(question.text)
+        print()
+
