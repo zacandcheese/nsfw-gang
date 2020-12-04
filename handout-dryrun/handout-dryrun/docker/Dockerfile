@@ -14,6 +14,7 @@ RUN apt-get -y update && \
 RUN pip3 install --upgrade pip
 RUN pip3 install spacy
 RUN python3 -m spacy download en_core_web_lg
+RUN pip3 install spacy-readability
 RUN pip3 install stanza
 RUN python3 -c 'import stanza; stanza.download("en")'
 RUN pip3 install aima3

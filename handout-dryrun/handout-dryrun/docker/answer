@@ -40,19 +40,6 @@ nlp = stanza.Pipeline(**config)
 nlp_spacy = spacy.load('en_core_web_lg')
 
 
-def sentence_similarity(question, file):
-
-    q = nlp_spacy(question)
-    best_sent = ""
-    max = -1
-    for sent in file.sents:
-        score = sent.similarity(q)
-        if (score > max):
-            max = score
-            best_sent = sent
-    # print(max, best_sent)
-    subject = [tok for tok in best_sent if (tok.dep_ == "nsubj")]
-    return subject[0]
 
 class ConjunctionType(enum.Enum):
     And = 0
@@ -75,6 +62,7 @@ class ObjectType(enum.Enum):
     Relation = 3
     Attribute = 4
     EntityClass = 5
+    Verb = 6
 
 
 class FillInTheBlankType(enum.Enum):
@@ -117,7 +105,7 @@ class RelationType(enum.Enum):
             return "equivalent"
         elif self.value == RelationType.Member_Of:
             return "is a member of"
-        elif self.value == RelationType.Hyponym:
+        elif self.value == RelationType.Hyponymn:
             return "is a hyponym of"
 
 
@@ -138,6 +126,59 @@ class FOLParser():
         self.file = None
         self.KB = (rules, self.facts)
         self.question_mode = False
+
+    def similar(self, s1, s2):
+        word_bag_s1 = set()
+        word_bag_s2 = set()
+        for tok in s1.words:
+            if "nsubj" in tok.deprel or tok.deprel == "root" or "cl" in tok.deprel or "obj" in tok.deprel or "obl" in tok.deprel:
+                word_bag_s1.add(tok.lemma)
+        for tok in s2.words:
+            if "nsubj" in tok.deprel or tok.deprel == "root" or "cl" in tok.deprel or "obj" in tok.deprel or "obl" in tok.deprel:
+                word_bag_s2.add(tok.lemma)
+        return len(word_bag_s1.intersection(word_bag_s2))
+
+    def sentence_similarity(self, question, file):
+
+        q = nlp_spacy(question)
+        q_stanza = nlp(question)
+        for sent in q_stanza.sentences:
+            q_stanza_sent = sent
+            break
+
+        best_sent = ""
+        best_sent_string = None
+        max = -1
+        for sent in file.sentences:
+            score = self.similar(q_stanza_sent, sent)
+            if (score > max):
+                max = score
+                best_sent = sent.text.split("\n")[-1]
+                for sent in self.nlp(best_sent).sentences:
+                    best_sent_string = sent
+                    break   
+        # print(best_sent_string.text)
+        # best_sent = best_sent_string.text.split("\n")[-1]
+
+        # print(max, best_sent)
+        subjects = [tok for tok in best_sent_string.words if ("nsubj" in tok.deprel)]
+        for subject in subjects:
+            # print(subject)
+            if subject.text not in question:
+                return self.get_name(best_sent_string, subject.id)
+
+        objects = [tok for tok in best_sent_string.words if ("obj" in tok.deprel)]
+        for object_item in objects:
+            if object_item.text not in question:
+                return self.get_name(best_sent_string, object_item.id)
+
+        others = [tok for tok in best_sent_string.words if (tok.deprel == "root" or "cl" in tok.deprel or tok.upos == "VERB" or tok.upos == "NOUN" or "obl" in tok.deprel or "nmod" in tok.deprel)]
+        for other_item in others:
+            if other_item.text not in question:
+                return self.get_name(best_sent_string, other_item.id)
+
+        return self.get_name(best_sent_string, subjects[0].id)
+
 
     def is_a_child_subj(self, sent, id):
         # THIS ID IS A VERB BECAUSE IS HAS DEPENDENTS LIKE A VERB
@@ -391,14 +432,14 @@ class FOLParser():
             except AttributeError:
                 pass
 
-        string = re.sub("\([^()]*\)", "", string)  # Remove Parenthesis Asides
+        string = re.sub(r"\([^()]*\)", "", string)  # Remove Parenthesis Asides
 
         return string
 
     def add_to_KB_from_text(self, text):
         text = self.preprocess_text(text)
         document = self.nlp(text)
-        self.file = nlp_spacy(text)
+        self.file = nlp(text)
         # deplacy.render(document)
 
         for sentence in document.sentences:
@@ -442,14 +483,14 @@ class FOLParser():
             if not self.question_mode:
                 self.set_of_relations.add(rel)
                 self.facts.add(rel)
+            if self.question_mode:
+                return rel
 
         # PARSE THE VERBS
         for id in ids_of_verbs:
             rel = self.generate_predicate(sentence, id)
 
             # TODO RELATION FOR VERBS
-        if self.question_mode:
-            return rel
 
     def get_options(self, obtype):
         if obtype == ObjectType.Attribute:
@@ -468,10 +509,12 @@ class FOLParser():
     def question_type(self, sent):
         # TODO: figure out which kind of question it is
         for word in sent.words:
-            if word.xpos == "WP":
+            if word.xpos == "WP" or word.xpos == "WRB":
                 return QuestionType.Wh_question
-
+            if word.lemma in ["who", "what", "where", "when", "how"]:
+                return QuestionType.Wh_question
         return QuestionType.TF_question
+
     def has_negation(self, sent):
         for word in sent.words:
             if word.lemma == "not":
@@ -484,20 +527,30 @@ class FOLParser():
         sentence = document.sentences[0]
 
         # print(sentence, question_string)
-        parsed_question = self.parse_sentence(sentence, True)
         if self.question_type(sentence) == QuestionType.TF_question:
-            if self.statement_entailed_by_KB(parsed_question):
-                return "True"
-            else:
-                if (self.has_negation(sentence)):
-                    return "False"
-                return "True"
+            parsed_question = self.parse_sentence(sentence, True)
+            # if parsed_question == None:
+            #     return True
+            try: 
+                if self.statement_entailed_by_KB(parsed_question):
+                    return "True"
+                else:
+                    if (self.has_negation(sentence)):
+                        return "False"
+                    return "True"
+            except:
+                try: 
+                    if (self.has_negation(sentence)):
+                        return "False"
+                    return "True"
+                except:
+                    return "True"
         else:
 
             obtype = ObjectType.Entity
             # fill_in_the_blank_type = None
             ## TODO: update above two variables by checking where the 'Wh' word is in the question
-            answer = self.fill_in_the_blank(parsed_question, obtype, question_string)
+            answer = self.fill_in_the_blank(obtype, question_string)
             return (self.capitalize_first_letter(str(answer))).strip() ## capitalize first letter when returning if not alr capitalized
 
 
@@ -554,7 +607,7 @@ class FOLParser():
 
     # for wh- questions
 
-    def fill_in_the_blank(self, incomplete_statement, obtype, string):
+    def fill_in_the_blank(self, obtype, string):
         """
 
     def fill_in_the_blank(self, incomplete_statement, obtype,
@@ -571,7 +624,7 @@ class FOLParser():
                 return option
 
         """
-        return sentence_similarity(string, self.file)
+        return self.sentence_similarity(string, self.file)
     # fills a predicate with a blank/blanks with the given object 
     def fill_predicate(self, option, incomplete_statement):
         if incomplete_statement.object_type() == ObjectType.Attribute:
