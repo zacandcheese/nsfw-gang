@@ -21,7 +21,8 @@
 
 import enum
 import re
-
+import spacy
+nlp_spacy = spacy.load('en_core_web_lg')
 
 class ConjunctionType(enum.Enum):
     And = 0
@@ -106,6 +107,7 @@ class FOLParser():
         self.list_of_entity_lists = []
 
         self.KB = (rules, self.facts)
+        self.question_mode = False
 
     def is_a_child_subj(self, sent, id):
         # THIS ID IS A VERB BECAUSE IS HAS DEPENDENTS LIKE A VERB
@@ -277,8 +279,9 @@ class FOLParser():
                         entity_list.append(
                             self.generate_entity(sent, temp_id, obj))
                     # Create Entity List
-                    self.facts.add(obj)
-                    self.list_of_entity_lists.append(entity_list)
+                    if not self.question_mode:
+                        self.facts.add(obj)
+                        self.list_of_entity_lists.append(entity_list)
                     return obj
 
             # Determine Definiteness
@@ -293,15 +296,18 @@ class FOLParser():
                 if (sent.words[id - 1].xpos == "WP"):
                     blank = True
                 obj = Entity(name, attribute_list, entity_list, modifier, blank)
-                self.set_of_entities.add(obj)
+                if not self.question_mode:
+                    self.set_of_entities.add(obj)
             else:
                 obj = EntityClass(name, attribute_list, entity_list, modifier)
-                self.set_of_entities.add(obj)
+                if not self.question_mode:
+                    self.set_of_entities.add(obj)
 
             for attribute in attribute_list:
                 fact = (Attribute(attribute, obj))
-                self.set_of_attrs.add(fact)
-                self.facts.add(fact)
+                if not self.question_mode:
+                    self.set_of_attrs.add(fact)
+                    self.facts.add(fact)
             return obj
 
     def generate_predicate(self, sentence, id):
@@ -323,13 +329,15 @@ class FOLParser():
             attribute_list = self.get_attributes(sentence, id)
             pred = Predicate(verb, attribute_list, subj, obj, iobj, obl)
             obl_list.append(pred)
-            self.set_of_predicates.add(pred)
+            if not self.question_mode:
+                self.set_of_predicates.add(pred)
 
         for i in range(len(obl_id_list)):
             for j in range(i+1, len(obl_id_list)):
                 rel = Relation(RelationType.Equivalent, obl_list[i],
                                obl_list[j])
-                self.set_of_relations.add(rel)
+                if not self.question_mode:
+                    self.set_of_relations.add(rel)
         """
         for obl_id in obl_id_list:
             obl = self.generate_entity(sentence, obl_id)
@@ -400,18 +408,17 @@ class FOLParser():
             # Create Relation
             # print("REL", lhs, rhs)
             rel = Relation(RelationType.Equivalent, lhs, rhs)
-            if add_to_KB:
+            if not self.question_mode:
                 self.set_of_relations.add(rel)
                 self.facts.add(rel)
 
         # PARSE THE VERBS
         for id in ids_of_verbs:
-            self.generate_predicate(sentence, id)
+            rel = self.generate_predicate(sentence, id)
 
             # TODO RELATION FOR VERBS
-
-        list_of_objects = None
-        return list_of_objects
+        if self.question_mode:
+            return rel
 
     def get_options(self, obtype):
         if obtype == ObjectType.Attribute:
@@ -427,14 +434,23 @@ class FOLParser():
         elif obtype == ObjectType.EntityClass:
             return self.self_of_entity_classes
 
-    def question_type(self, parsed_question, question_string):
+    def question_type(self, sent):
         # TODO: figure out which kind of question it is
+        for word in sent.words:
+            if word.xpos == "WP":
+                print(word.text)
+                return QuestionType.Wh_question
+
         return QuestionType.TF_question
 
     def answer_question(self, question_string):
-        parsed_question = self.parse_sentence(question_string)
-        if self.question_type(parsed_question,
-                              question_string) == QuestionType.TF_question:
+        self.question_mode = True
+        text = self.preprocess_text(question_string)
+        document = self.nlp(text)
+        sentence = document.sentences[0]
+        parsed_question = self.parse_sentence(sentence, True)
+        print(self.question_type(sentence))
+        if self.question_type(sentence) == QuestionType.TF_question:
             if self.statement_entailed_by_KB(parsed_question):
                 return "True"
             else:
@@ -460,7 +476,7 @@ class FOLParser():
 
     def add_entity_class(self, name, attribute_set):
         # create class if it doesn't already exist
-        # if a class exists with a subset of these attributes, we use that as the base class and add on the remaining attributes 
+        # if a class exists with a subset of these attributes, we use that as the base class and add on the remaining attributes
         pass
 
     def add_attributes_to_entity(self, attribute_set, entity):
@@ -473,6 +489,7 @@ class FOLParser():
 
     # for true false questions
     def statement_entailed_by_KB(self, statement):
+
         assert (statement.object_type() == ObjectType.Relation)
         # relation_type = statement.rel_type
         for relation in self.set_of_relations:
@@ -481,7 +498,7 @@ class FOLParser():
         return False
         # if relation_type == RelationType.Implication:
         #     pass
-        #     ## 
+        #     ##
         # elif relation_type == RelationType.No_Relation:
         #     pass
 
@@ -493,7 +510,7 @@ class FOLParser():
                           fill_in_the_blank_type):
         options = self.get_options(obtype)
         for option in options:
-            ## for entities, try entity lists too.  
+            ## for entities, try entity lists too.
             ## entity_lists get preference over entities if both satisfy the statement
             complete_statement = self.fill_predicate(option,
                                                      fill_in_the_blank_type,
@@ -501,11 +518,11 @@ class FOLParser():
             if self.statement_entailed_by_KB(complete_statement):
                 return option
 
-    # fills a predicate with a blank/blanks with the given object 
+    # fills a predicate with a blank/blanks with the given object
     def fill_predicate(self, option, fill_in_the_blank_type,
                        incomplete_statement):
         X = incomplete_statement
-        ## TODO: create a new statement 
+        ## TODO: create a new statement
         return X
 
     def generate_all_questions(self):
@@ -556,19 +573,33 @@ class Relation():
 
     def user_string(self):
         if self.RHS == None:
-            return (
-                        self.rel_type.to_string() + " " + self.LHS.user_string()).strip()
-        return (
-                    self.LHS.user_string() + " " + self.rel_type.to_string() + " " + self.RHS.user_string()).strip()
+            return (self.rel_type.to_string() + " " + self.LHS.user_string()).strip()
+        return (self.LHS.user_string() + " " + self.rel_type.to_string() + " " + self.RHS.user_string()).strip()
 
     def make_copy(self):
         return Relation(self.rel_type, self.LHS, self.RHS)
 
+    def __eq__(self, other):
 
+        otherL = nlp_spacy(other.LHS.name)
+        otherR = nlp_spacy(other.RHS.name)
+
+        currentL = nlp_spacy(self.LHS.name)
+        currentR = nlp_spacy(self.RHS.name)
+        score1 = otherL.similarity(currentL) > 0.97
+        score2 = otherR.similarity(currentR) > 0.97
+        if score1 and score2:
+            return True
+        score1 = otherR.similarity(currentL) > 0.97
+        score2 = otherL.similarity(currentR) > 0.97
+        if score1 and score2:
+            return True
+
+        return False
 class Predicate():
     def __init__(self, name, attributes, subject, obj, iobj, obl, blank=False):
-        self.name = name
-        self.name_lemma = name.lemma
+        self.name = name.lemma
+        self.name_lemma = name
         self.meta_data = name.feats
         self.attributes = attributes
         self.subject = subject
@@ -583,11 +614,11 @@ class Predicate():
     # given a verb, say, Shop, and a subject, Zach, and maybe modifiers, slowly, we make a predicate which is equivalent to the knowledge that Zach shops slowly. This gives us the ability to automatically have Zach shops because the modifiers don't need to be checked.
     def __hash__(self):
         return hash(
-            (self.name_lemma.lower(), str(self.subject), str(self.direct_obj),
+            (self.name.lower(), str(self.subject), str(self.direct_obj),
              str(self.indirect_obj), str(self.obl)))
 
     def __str__(self):
-        return self.name_lemma + "(" + str(self.subject) + ", " + str(
+        return self.name + "(" + str(self.subject) + ", " + str(
             self.direct_obj) + ", " + str(self.indirect_obj) + ", " + str(
             self.obl) \
                + ")"
@@ -711,6 +742,11 @@ class EntityList():
         self.entity_list = entity_set
         self.blank = blank
 
+        string = ""
+        for ent in self.entity_list:
+            string += str(ent) + " " + self.conj + " "
+        self.name = string[:-len(self.conj) - 2]
+
     def object_type(self):
         return ObjectType.EntityList
 
@@ -738,118 +774,10 @@ class EntityList():
     def make_copy(self):
         return EntityList(self.conj, self.entity_list)
 
-def try_capitalize (noun) :
-    nouns = noun.split()
-    res = ""
-    for noun in nouns:
-        noun = noun.lower()
-        if nlp(noun).sentences[0].words[0].upos == "PROPN":
-            noun = noun.capitalize()
-        res += " " + noun
-    return res[1:]
-
-def which_w (subject):
-    entity = nlp(subject).sentences[0].tokens[0].ner
-    if entity in ["S-PERSON", "S-NORP", "S-PER"]:
-        return "Who"
-    elif entity in ["S-GPE", "S-LOC", "S-LOCATION"]:
-        return "Where"
-    elif entity in ["S-DATE", "S-TIME"]:
-        return "When"
-    return "What"
-
-def is_plural (subject):
-    wordslist = nlp(subject).sentences[0].words
-    if (len(wordslist) == 0):
-        return False
-    else:
-        return (wordslist[len(wordslist) - 1].upos == "NOUN" and "Number=Plur" in wordslist[len(wordslist) - 1].feats)
-def write_question (predicate, a, b, c, d, dict_of_relations, question_type, chained, positive):
-    if "()" in a and "()" in b and c == "None" and d == "None":
-        a = re.sub(r'\([^)]*\)', '', a)
-        b = re.sub(r'\([^)]*\)', '', b)
-        if (question_type == "w"):
-
-            if chained:
-                if b in dict_of_relations:
-                    b = dict_of_relations[b][0]
-                a = try_capitalize(a)
-                b = try_capitalize(b)
-                w = which_w(a)
-                if positive:
-                    return (w + " " + predicate + " " + b + "?")
-                else:
-                    predicate = correct_tense(predicate)
-                    return (w + " doesn't " + predicate + " " + b + "?")
-
-            else:
-                a = try_capitalize(a)
-                b = try_capitalize(b)
-                w = which_w(a)
-                if positive:
-                    return (w + " " + predicate + " " + b + "?")
-                else:
-                    predicate = correct_tense(predicate)
-                    return (w + " doesn't " + predicate + " " + b + "?")
-
-
-        elif (question_type == "t/f"):
-
-            if chained:
-
-                if a in dict_of_relations:
-                    a = dict_of_relations[a][0]
-
-                if b in dict_of_relations:
-                    b = dict_of_relations[b][0]
-                
-
-                plural = is_plural(a)
-                a = try_capitalize(a)
-                b = try_capitalize(b)
-                predicate = correct_tense(predicate)
-                if plural:
-                    if positive:
-                        return ("Do " + a + " " + predicate + " " + b + "?")
-                    else:
-                        return ("Do " + a + " not " + predicate + " " + b + "?")
-                else:
-                    if positive:
-                        return ("Does " + a + " " + predicate + " " + b + "?")
-                    else:
-                        return ("Does " + a + " not " + predicate + " " + b + "?")
-            else:
-                plural = is_plural(a)
-                a = try_capitalize(a)
-                b = try_capitalize(b)
-                predicate = correct_tense(predicate)
-                if plural:
-                    if positive:
-                        return ("Do " + a + " " + predicate + " " + b + "?")
-                    else:
-                        return ("Do " + a + " not " + predicate + " " + b + "?")
-                else:
-                    if positive:
-                        return ("Does " + a + " " + predicate + " " + b + "?")
-                    else:
-                        return ("Does " + a + " not " + predicate + " " + b + "?")
-    return ""
-
-def correct_tense (verb):
-    return nlp(verb).sentences[0].words[0].lemma
-
-
-
 
 if __name__ == '__main__':
     import stanza
     import io
-    from collections import defaultdict
-    import spacy
-    from spacy_readability import Readability
-
-    readability_nlp = spacy.load('en')
-    readability_nlp.add_pipe(Readability())
 
     config = {
         'processors': 'tokenize,pos,lemma,depparse',
@@ -859,18 +787,27 @@ if __name__ == '__main__':
 
 
     fol_parser = FOLParser(nlp)
-    string = "Biden is the president. The President likes cheese. Mozarrela is cheese."
 
     f = open("NLP_PROJ/set5/a1.txt", "r", encoding="utf-8")
-
+    # string = "largest known dog is an English Mastiff."
     fol_parser.add_to_KB_from_text(f.read())
-    #fol_parser.add_to_KB_from_text(string)
+    # fol_parser.add_to_KB_from_text(string)
     f.close()
+
+    print(fol_parser.answer_question("Is the largest known dog an English "
+                                     "Mastiff?"))
+
+
+    """
     print("\nentities are\n")
+    print(list(set(fol_parser.set_of_entities)))
+    
+    
     for ent in fol_parser.set_of_entities:
-        print(ent, type(ent))
+       print(ent, type(ent))
 
     print("\npredicates are\n")
+    """
     for ent in fol_parser.set_of_predicates:
         print(ent)
 
@@ -883,6 +820,7 @@ if __name__ == '__main__':
         print(ent)
 
     print("\nchaining\n")
+    """
     # given a relation object, we can tell if it's entailed by the KB
     # now we just need to create a relation object out of a question string
     """
@@ -899,35 +837,3 @@ if __name__ == '__main__':
                 print(fol_parser.statement_entailed_by_KB(rel_copy))
                 print()
     """
-
-    i = 0
-    # create relation list
-    dict_of_relations = defaultdict(list)
-    num_questions = 5
-
-    for rel_not_string in fol_parser.set_of_relations:
-        rel = str(rel_not_string);
-        sides = rel.split(" <==> ")
-        if "()" in sides[0] and "()" in sides[1]:
-            value = re.sub(r'\([^)]*\)', '', sides[0])
-            key = re.sub(r'\([^)]*\)', '', sides[1])
-            dict_of_relations[try_capitalize(key)].append(try_capitalize(value));
-        
-    
-    for pred in fol_parser.set_of_predicates:
-        if(i >= num_questions):
-            break
-        
-        str1 = write_question(str(pred.name_lemma), str(pred.subject), str(pred.direct_obj), str(pred.indirect_obj), str(pred.obl), dict_of_relations, "w", True, False);
-        if not(str1 ==""):
-            str1_nlp = readability_nlp(str1)
-            if(str1_nlp._.automated_readability_index >= 8.0):
-                print(str1)
-                i += 1
-        str2 = (write_question(str(pred.name_lemma), str(pred.subject), str(pred.direct_obj), str(pred.indirect_obj), str(pred.obl), dict_of_relations, "t/f", True, False));
-        if not(str2 == ""):
-            str2_nlp = readability_nlp(str2)
-            if(str2_nlp._.automated_readability_index >= 8.0):
-                print(str2)
-                i += 1
-        
