@@ -851,7 +851,7 @@ if __name__ == '__main__':
     import warnings
 
 
-    readability_nlp = spacy.load('en')
+    readability_nlp = spacy.load('en_core_web_lg')
     readability_nlp.add_pipe(Readability())
 
     config = {
