@@ -74,8 +74,8 @@ class ObjectType(enum.Enum):
     EntityClass = 5
 
 
-# class FillInTheBlankType(enum.Enum):
-#     pass
+class FillInTheBlankType(enum.Enum):
+    pass
 
 
 class QuestionType(enum.Enum):
@@ -490,11 +490,13 @@ class FOLParser():
                     return "False"
                 return "True"
         else:
+
             obtype = ObjectType.Entity
             # fill_in_the_blank_type = None
             ## TODO: update above two variables by checking where the 'Wh' word is in the question
             answer = self.fill_in_the_blank(parsed_question, obtype, question_string)
             return (self.capitalize_first_letter(answer.user_string())).strip() ## capitalize first letter when returning if not alr capitalized
+
 
     def capitalize_first_letter(self, s):
         if s == "":
@@ -548,15 +550,23 @@ class FOLParser():
         #     pass
 
     # for wh- questions
+
     def fill_in_the_blank(self, incomplete_statement, obtype, string):
         """
+
+    def fill_in_the_blank(self, incomplete_statement, obtype,
+                          fill_in_the_blank_type):
+    >>>>>>> 3c15ba4fa7e8a4eaad1c62f6c1b68eacd415b228
         options = self.get_options(obtype)
         for option in options:
             ## for entities, try entity lists too.
             ## entity_lists get preference over entities if both satisfy the statement
-            complete_statement = self.fill_predicate(option, incomplete_statement)
+            complete_statement = self.fill_predicate(option,
+                                                     fill_in_the_blank_type,
+                                                     incomplete_statement)
             if self.statement_entailed_by_KB(complete_statement):
                 return option
+
         """
         return sentence_similarity(string, self.file)
     # fills a predicate with a blank/blanks with the given object 
@@ -578,6 +588,7 @@ class FOLParser():
 
         ## TODO: create a new statement 
         # return X
+
 
     def generate_all_questions(self):
         ## TODO: link this to Mehul + Efe's code
