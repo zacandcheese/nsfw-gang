@@ -934,6 +934,9 @@ if __name__ == '__main__':
             if((str1_nlp._.automated_readability_index) >= 9.0):
                 print(str1)
                 i += 1
+                
+        if(i >= num_questions):
+                break
         str2 = (write_question(str(pred.name_lemma), str(pred.subject), str(pred.direct_obj), str(pred.indirect_obj), str(pred.obl), dict_of_relations, "t/f", True, False));
         if not(str2 == ""):
             str2_nlp = readability_nlp(str2)
@@ -951,6 +954,9 @@ if __name__ == '__main__':
                 if((str1_nlp._.automated_readability_index) >= 5.0):
                     print(str1)
                     i += 1
+
+            if(i >= num_questions):
+                break
             str2 = (write_question(str(pred.name_lemma), str(pred.subject), str(pred.direct_obj), str(pred.indirect_obj), str(pred.obl), dict_of_relations, "t/f", True, False));
             if not(str2 == ""):
                 str2_nlp = readability_nlp(str2)
