@@ -556,7 +556,7 @@ class FOLParser():
 
     def fill_in_the_blank(self, incomplete_statement, obtype,
                           fill_in_the_blank_type):
-    >>>>>>> 3c15ba4fa7e8a4eaad1c62f6c1b68eacd415b228
+    >>>>>>> 3c15ba4fa7e8a4eaad1c62f6c1b68eacd415b228`
         options = self.get_options(obtype)
         for option in options:
             ## for entities, try entity lists too.

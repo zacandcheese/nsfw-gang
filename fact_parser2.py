@@ -9,7 +9,8 @@ config = {
 nlp = stanza.Pipeline(**config)
 
 string = "The Old Kingdom is the period in the third millennium also known as the 'Age of the Pyramids' or 'Age of the Pyramid Builders' as it includes the great 4th Dynasty when King Sneferu perfected the art of pyramid building and the pyramids of Giza were constructed under the kings Khufu, Khafre, and Menkaure. "
-string = "He doesn't like candy."
+string = "In the United States' opening 2010 World Cup qualifier, Dempsey recorded the then fastest goal in US qualifying history with a chest trap and sliding shot 53 seconds into an 8–0 defeat of Barbados."
+string = "The Old King"
 def preprocess_string(string):
     try:
         (start, stop) = (re.search("See also", string)).span()
